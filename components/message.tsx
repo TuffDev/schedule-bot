@@ -7,15 +7,40 @@ import { motion } from "framer-motion";
 import { SparklesIcon } from "@/components/icons";
 import { Markdown } from "@/components/markdown";
 import { Schedule } from "@/components/schedule";
+import { ScheduleSuggestion } from "@/components/schedule-suggestion";
+
+// Component to display today's date nicely
+const TodayDisplay = ({
+  date,
+  dayOfWeek,
+  formatted,
+}: {
+  date: string;
+  dayOfWeek: string;
+  formatted: string;
+}) => (
+  <div className="flex flex-col gap-1 p-3 rounded-lg bg-blue-100 dark:bg-blue-900">
+    <div className="text-lg font-medium">{formatted}</div>
+    <div className="text-sm text-gray-600 dark:text-gray-300">{dayOfWeek}</div>
+  </div>
+);
 
 export const PreviewMessage = ({
   chatId,
   message,
   isLoading,
+  onSchedule,
 }: {
   chatId: string;
   message: Message;
   isLoading: boolean;
+  onSchedule?: (eventDetails: {
+    title: string;
+    description?: string;
+    startTime: string;
+    endTime: string;
+    attendees: string[];
+  }) => void;
 }) => {
   return (
     <motion.div
@@ -55,11 +80,20 @@ export const PreviewMessage = ({
                       {toolName === "getSchedule" ? (
                         <Schedule schedule={result} />
                       ) : toolName === "suggestTime" ? (
-                        <Schedule
+                        <ScheduleSuggestion
                           schedule={result.schedule}
                           suggestedTime={result.suggestedTime}
-                          isHighlighted={true}
+                          message={result.message}
+                          duration={result.duration}
+                          onSchedule={onSchedule}
                         />
+                      ) : toolName === "addEvent" ? (
+                        <Schedule
+                          schedule={result.schedule}
+                          isHighlighted={result.success}
+                        />
+                      ) : toolName === "getToday" ? (
+                        <TodayDisplay {...result} />
                       ) : (
                         <pre>{JSON.stringify(result, null, 2)}</pre>
                       )}
@@ -70,13 +104,24 @@ export const PreviewMessage = ({
                   <div
                     key={toolCallId}
                     className={cx({
-                      skeleton: ["getSchedule", "suggestTime"].includes(
-                        toolName
-                      ),
+                      skeleton: [
+                        "getSchedule",
+                        "suggestTime",
+                        "getToday",
+                        "addEvent",
+                      ].includes(toolName),
                     })}
                   >
-                    {["getSchedule", "suggestTime"].includes(toolName) ? (
+                    {["getSchedule", "suggestTime", "addEvent"].includes(
+                      toolName
+                    ) ? (
                       <Schedule />
+                    ) : toolName === "getToday" ? (
+                      <TodayDisplay
+                        date=""
+                        dayOfWeek="Loading..."
+                        formatted="Loading..."
+                      />
                     ) : null}
                   </div>
                 );

@@ -6,19 +6,39 @@ import {
   streamText,
 } from "ai";
 import { z } from "zod";
+import { format } from "date-fns";
+import { NextResponse } from "next/server";
+import twilio from "twilio";
 
 import { customModel } from "@/lib/ai";
 import { models } from "@/lib/ai/models";
 import { systemPrompt } from "@/lib/ai/prompts";
 import { generateUUID, getMostRecentUserMessage } from "@/lib/utils";
+import {
+  getUserSchedule,
+  findAvailableSlots,
+  addEventToSchedule,
+} from "@/lib/schedule";
 
 export const maxDuration = 60;
 
-type AllowedTools = "createDocument" | "updateDocument" | "getWeather";
+type AllowedTools = "getSchedule" | "suggestTime" | "getToday" | "addEvent";
 
-const blocksTools: AllowedTools[] = ["createDocument", "updateDocument"];
-const weatherTools: AllowedTools[] = ["getWeather"];
-const allTools: AllowedTools[] = [...blocksTools, ...weatherTools];
+const scheduleTools: AllowedTools[] = [
+  "getSchedule",
+  "suggestTime",
+  "getToday",
+  "addEvent",
+];
+const allTools: AllowedTools[] = [...scheduleTools];
+
+// Initialize Twilio client
+const client = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
+const NOTIFICATION_PHONE_NUMBER = process.env.NOTIFICATION_PHONE_NUMBER;
 
 export async function POST(request: Request) {
   const { messages, modelId }: { messages: Array<Message>; modelId: string } =
@@ -46,134 +66,165 @@ export async function POST(request: Request) {
     maxSteps: 5,
     experimental_activeTools: allTools,
     tools: {
-      getWeather: {
-        description: "Get the current weather at a location",
-        parameters: z.object({
-          latitude: z.number(),
-          longitude: z.number(),
-        }),
-        execute: async ({ latitude, longitude }) => {
-          const response = await fetch(
-            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m&hourly=temperature_2m&daily=sunrise,sunset&timezone=auto`
-          );
-
-          const weatherData = await response.json();
-          return weatherData;
-        },
-      },
-      createDocument: {
-        description: "Create a document for a writing activity",
-        parameters: z.object({
-          title: z.string(),
-        }),
-        execute: async ({ title }) => {
-          const id = generateUUID();
-          let draftText = "";
-
-          streamingData.append({
-            type: "id",
-            content: id,
-          });
-
-          streamingData.append({
-            type: "title",
-            content: title,
-          });
-
-          streamingData.append({
-            type: "clear",
-            content: "",
-          });
-
-          const { fullStream } = await streamText({
-            model: customModel(model.apiIdentifier),
-            system:
-              "Write about the given topic. Markdown is supported. Use headings wherever appropriate.",
-            prompt: title,
-          });
-
-          for await (const delta of fullStream) {
-            const { type } = delta;
-
-            if (type === "text-delta") {
-              const { textDelta } = delta;
-
-              draftText += textDelta;
-              streamingData.append({
-                type: "text-delta",
-                content: textDelta,
-              });
-            }
-          }
-
-          streamingData.append({ type: "finish", content: "" });
-
+      getToday: {
+        description: "Get today's date in YYYY-MM-DD format",
+        parameters: z.object({}),
+        execute: async () => {
           return {
-            id,
-            title,
-            content: "A document was created and is now visible to the user.",
+            date: format(new Date(), "yyyy-MM-dd"),
+            dayOfWeek: format(new Date(), "EEEE"),
+            formatted: format(new Date(), "MMMM d, yyyy"),
           };
         },
       },
-      updateDocument: {
-        description: "Update a document with the given description",
+      getSchedule: {
+        description:
+          "Get the managed person's schedule for a specified date range",
         parameters: z.object({
-          id: z.string().describe("The ID of the document to update"),
+          startDate: z
+            .string()
+            .optional()
+            .describe(
+              "Start date in YYYY-MM-DD format. Defaults to today if not provided."
+            ),
+          days: z
+            .number()
+            .optional()
+            .describe(
+              "Number of days to fetch. Defaults to 5 if not provided."
+            ),
+        }),
+        execute: async ({ startDate, days }) => {
+          return getUserSchedule(
+            startDate ? new Date(startDate) : new Date(),
+            days || 5
+          );
+        },
+      },
+      suggestTime: {
+        description:
+          "Find available time slots for a meeting with the managed person",
+        parameters: z.object({
+          date: z
+            .string()
+            .describe(
+              "The date to check for available slots (YYYY-MM-DD format)"
+            ),
+          duration: z.number().describe("Duration of the meeting in minutes"),
+          startHour: z
+            .number()
+            .optional()
+            .describe("Start of working hours (0-23). Defaults to 9."),
+          endHour: z
+            .number()
+            .optional()
+            .describe("End of working hours (0-23). Defaults to 17."),
+        }),
+        execute: async ({ date, duration, startHour, endHour }) => {
+          const availableSlots = findAvailableSlots(
+            new Date(date),
+            duration,
+            startHour,
+            endHour
+          );
+
+          // If no slots are available, return appropriate message
+          if (!availableSlots.length) {
+            return {
+              schedule: getUserSchedule(new Date(date), 1),
+              suggestedTime: null,
+              message:
+                "No available slots found for the specified duration on this date.",
+              duration,
+            };
+          }
+
+          // Return the first available slot as the suggestion
+          const suggestedSlot = availableSlots[0];
+
+          return {
+            schedule: getUserSchedule(new Date(date), 1),
+            suggestedTime: suggestedSlot.startTime,
+            message: `I found an available slot at ${
+              suggestedSlot.startTime.split("T")[1]
+            } for ${duration} minutes.`,
+            duration,
+          };
+        },
+      },
+      addEvent: {
+        description: "Add a new event to the managed person's schedule",
+        parameters: z.object({
+          title: z.string().describe("Title of the event"),
+          startTime: z
+            .string()
+            .describe("Start time in ISO format (YYYY-MM-DDTHH:mm)"),
+          endTime: z
+            .string()
+            .describe("End time in ISO format (YYYY-MM-DDTHH:mm)"),
           description: z
             .string()
-            .describe("The description of changes that need to be made"),
+            .optional()
+            .describe("Optional description of the event"),
+          attendees: z
+            .array(z.string())
+            .optional()
+            .describe("Optional list of attendee email addresses"),
         }),
-        execute: async ({ id, description }) => {
-          // In a real implementation, you would fetch the document content from somewhere
-          const currentContent = "Example content";
-          let draftText = "";
+        execute: async ({
+          title,
+          startTime,
+          endTime,
+          description,
+          attendees,
+        }) => {
+          const result = addEventToSchedule(
+            title,
+            startTime,
+            endTime,
+            description,
+            attendees
+          );
 
-          streamingData.append({
-            type: "clear",
-            content: "Document Title",
-          });
+          if (!result.success) {
+            return {
+              success: false,
+              error: result.error,
+              schedule: getUserSchedule(new Date(startTime), 1),
+            };
+          }
 
-          const { fullStream } = await streamText({
-            model: customModel(model.apiIdentifier),
-            system:
-              "You are a helpful writing assistant. Based on the description, please update the piece of writing.",
-            experimental_providerMetadata: {
-              openai: {
-                prediction: {
-                  type: "content",
-                  content: currentContent,
-                },
-              },
-            },
-            messages: [
-              {
-                role: "user",
-                content: description,
-              },
-              { role: "user", content: currentContent },
-            ],
-          });
+          // Send SMS notification if configured
+          if (NOTIFICATION_PHONE_NUMBER) {
+            try {
+              const message = `New event scheduled: ${title} on ${
+                startTime.split("T")[0]
+              } at ${startTime.split("T")[1]}${
+                description ? `\nDescription: ${description}` : ""
+              }${
+                attendees?.length > 0
+                  ? `\nAttendees: ${attendees.join(", ")}`
+                  : ""
+              }`;
 
-          for await (const delta of fullStream) {
-            const { type } = delta;
-
-            if (type === "text-delta") {
-              const { textDelta } = delta;
-
-              draftText += textDelta;
-              streamingData.append({
-                type: "text-delta",
-                content: textDelta,
+              await client.messages.create({
+                body: message,
+                to: NOTIFICATION_PHONE_NUMBER,
+                from: process.env.TWILIO_PHONE_NUMBER,
               });
+            } catch (error) {
+              console.error("Failed to send SMS notification:", error);
+              // Continue even if SMS fails - don't block the event creation
             }
           }
 
-          streamingData.append({ type: "finish", content: "" });
-
           return {
-            id,
-            title: "Document Title",
-            content: "The document has been updated successfully.",
+            success: true,
+            event: result.event,
+            schedule: getUserSchedule(new Date(startTime), 1),
+            message: `Successfully scheduled "${title}" from ${
+              startTime.split("T")[1]
+            } to ${endTime.split("T")[1]} and sent a text message to our team.`,
           };
         },
       },

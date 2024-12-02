@@ -22,14 +22,14 @@ import { Textarea } from "@/components/ui/textarea";
 
 const suggestedActions = [
   {
-    title: "Schedule a meeting",
-    label: "tomorrow afternoon",
-    action: "Can you help me schedule a meeting for tomorrow afternoon?",
+    title: "Today's schedule",
+    label: "for the day",
+    action: "What's on your schedule for today?",
   },
   {
     title: "Find available time",
-    label: "for a 1-hour meeting next week",
-    action: "When am I free next week for a 1-hour meeting?",
+    label: "for a 1-hour meeting this week",
+    action: "When are you free this week for a 1-hour meeting?",
   },
 ];
 

@@ -1,5 +1,5 @@
 import cx from "classnames";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { useEffect, useState } from "react";
 
 // Sample schedule data structure
@@ -9,6 +9,7 @@ export interface ScheduleEvent {
   startTime: string;
   endTime: string;
   description?: string;
+  attendees: string[];
 }
 
 export interface DailySchedule {
@@ -20,44 +21,18 @@ export interface Schedule {
   schedules: DailySchedule[];
 }
 
-// Sample schedule data
-export const SAMPLE_SCHEDULE: Schedule = {
-  schedules: [
-    {
-      date: "2024-03-19",
-      events: [
-        {
-          id: "1",
-          title: "Team Meeting",
-          startTime: "2024-03-19T09:00",
-          endTime: "2024-03-19T10:00",
-          description: "Weekly sync with the team",
-        },
-        {
-          id: "2",
-          title: "Lunch",
-          startTime: "2024-03-19T12:00",
-          endTime: "2024-03-19T13:00",
-        },
-      ],
-    },
-    {
-      date: "2024-03-20",
-      events: [
-        {
-          id: "3",
-          title: "Client Call",
-          startTime: "2024-03-20T14:00",
-          endTime: "2024-03-20T15:00",
-          description: "Project review with client",
-        },
-      ],
-    },
-  ],
-};
+// Helper function to create a UTC date from a date string
+function createUTCDate(dateString: string): Date {
+  // If it's just a date (YYYY-MM-DD), append time at local midnight
+  if (dateString.length === 10) {
+    return new Date(`${dateString}T00:00:00`);
+  }
+  // If it includes time, parse it as local time
+  return new Date(dateString);
+}
 
 export function Schedule({
-  schedule = SAMPLE_SCHEDULE,
+  schedule = { schedules: [] },
   suggestedTime = "",
   isHighlighted = false,
 }: {
@@ -91,7 +66,7 @@ export function Schedule({
         {schedule.schedules.slice(0, daysToShow).map((dailySchedule) => (
           <div key={dailySchedule.date} className="flex flex-col gap-2">
             <div className="text-sm font-medium text-gray-600 dark:text-gray-300">
-              {format(new Date(dailySchedule.date), "EEEE, MMMM d")}
+              {format(createUTCDate(dailySchedule.date), "EEEE, MMMM d")}
             </div>
             {dailySchedule.events.map((event) => (
               <div
@@ -106,8 +81,8 @@ export function Schedule({
                 <div className="flex justify-between items-center">
                   <span className="font-medium">{event.title}</span>
                   <span className="text-sm text-gray-600 dark:text-gray-300">
-                    {format(new Date(event.startTime), "h:mm a")} -{" "}
-                    {format(new Date(event.endTime), "h:mm a")}
+                    {format(createUTCDate(event.startTime), "h:mm a")} -{" "}
+                    {format(createUTCDate(event.endTime), "h:mm a")}
                   </span>
                 </div>
                 {event.description && (

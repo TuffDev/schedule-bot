@@ -36,6 +36,29 @@ export function Chat({
   const [messagesContainerRef, messagesEndRef] =
     useScrollToBottom<HTMLDivElement>();
 
+  const handleSchedule = async (eventDetails: {
+    title: string;
+    description?: string;
+    startTime: string;
+    endTime: string;
+    attendees: string[];
+  }) => {
+    await append({
+      role: "user",
+      content: `Please schedule a meeting titled "${eventDetails.title}" from ${
+        eventDetails.startTime
+      } to ${eventDetails.endTime}${
+        eventDetails.description
+          ? ` with description: ${eventDetails.description}`
+          : ""
+      }${
+        eventDetails.attendees.length > 0
+          ? ` and attendees: ${eventDetails.attendees.join(", ")}`
+          : ""
+      }`,
+    });
+  };
+
   return (
     <>
       <div className="flex flex-col min-w-0 h-dvh bg-background">
@@ -51,6 +74,7 @@ export function Chat({
               chatId={id}
               message={message}
               isLoading={isLoading && messages.length - 1 === index}
+              onSchedule={handleSchedule}
             />
           ))}
 
