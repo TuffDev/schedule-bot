@@ -2,18 +2,16 @@ import {
   type Message,
   StreamData,
   convertToCoreMessages,
-  streamObject,
   streamText,
 } from "ai";
 import { z } from "zod";
 import { format } from "date-fns";
-import { NextResponse } from "next/server";
 import twilio from "twilio";
 
 import { customModel } from "@/lib/ai";
 import { models } from "@/lib/ai/models";
 import { systemPrompt } from "@/lib/ai/prompts";
-import { generateUUID, getMostRecentUserMessage } from "@/lib/utils";
+import { getMostRecentUserMessage } from "@/lib/utils";
 import {
   getUserSchedule,
   findAvailableSlots,
@@ -32,11 +30,10 @@ const scheduleTools: AllowedTools[] = [
 ];
 const allTools: AllowedTools[] = [...scheduleTools];
 
-// Initialize Twilio client
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+const client =
+  process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
+    ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+    : null;
 
 const NOTIFICATION_PHONE_NUMBER = process.env.NOTIFICATION_PHONE_NUMBER;
 
@@ -195,7 +192,7 @@ export async function POST(request: Request) {
           }
 
           // Send SMS notification if configured
-          if (NOTIFICATION_PHONE_NUMBER) {
+          if (NOTIFICATION_PHONE_NUMBER && client) {
             try {
               const message = `New event scheduled: ${title} on ${
                 startTime.split("T")[0]
@@ -229,7 +226,7 @@ export async function POST(request: Request) {
         },
       },
     },
-    onFinish: async (result) => {
+    onFinish: async () => {
       streamingData.close();
     },
     experimental_telemetry: {

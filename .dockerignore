@@ -1,0 +1,14 @@
+.git
+.gitignore
+*.md
+.next
+.env
+.env.*
+node_modules
+.pnpm-store
+pnpm-debug.log
+Dockerfile
+.dockerignore
+README.md
+.vscode
+.idea 

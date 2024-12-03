@@ -1,5 +1,5 @@
 import { format, addMinutes, parseISO } from "date-fns";
-import { useState, type ChangeEvent } from "react";
+import { useState } from "react";
 import { Schedule } from "@/components/schedule";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 
 interface ScheduleSuggestionProps {
-  schedule: any;
+  schedule: Schedule;
   suggestedTime: string | null;
   message: string;
   duration?: number;

@@ -27,7 +27,6 @@ export function Chat({
     append,
     isLoading,
     stop,
-    data: streamingData,
   } = useChat({
     body: { id, modelId: selectedModelId },
     initialMessages,

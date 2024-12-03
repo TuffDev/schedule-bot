@@ -24,12 +24,17 @@ const suggestedActions = [
   {
     title: "Today's schedule",
     label: "for the day",
-    action: "What's on your schedule for today?",
+    action: "What's on my schedule for today?",
   },
   {
     title: "Find available time",
-    label: "for a 1-hour meeting this week",
-    action: "When are you free this week for a 1-hour meeting?",
+    label: "for a 1-hour meeting next week",
+    action: "When am I free next week for a 1-hour meeting?",
+  },
+  {
+    title: "Test AI Scheduling",
+    label: "simulate a scheduling conversation",
+    action: "test",
   },
 ];
 
@@ -117,6 +122,52 @@ export function MultimodalInput({
     }
   }, [handleSubmit, setLocalStorageInput, width]);
 
+  const handleTestSchedule = async () => {
+    try {
+      // Filter out the test marker message and only send relevant conversation messages
+      const relevantMessages = messages.filter((msg) => msg.content !== "test");
+
+      const response = await fetch("/api/test-schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages: relevantMessages }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to get test message");
+      }
+      const data = await response.json();
+
+      if (data.message) {
+        await append({
+          role: "user",
+          content: data.message,
+        });
+      }
+    } catch (error) {
+      console.error("Error running test:", error);
+      toast.error("Failed to run scheduling test");
+    }
+  };
+
+  useEffect(() => {
+    if (
+      messages.length > 0 &&
+      messages[messages.length - 1].role === "assistant" &&
+      messages[0]?.content === "test"
+    ) {
+      // Wait a moment before responding to make it feel more natural
+      const timer = setTimeout(() => {
+        handleTestSchedule();
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [messages]);
+
   return (
     <div className="relative w-full flex flex-col gap-4">
       {messages.length === 0 && (
@@ -133,10 +184,19 @@ export function MultimodalInput({
               <Button
                 variant="ghost"
                 onClick={async () => {
-                  append({
-                    role: "user",
-                    content: suggestedAction.action,
-                  });
+                  if (suggestedAction.action === "test") {
+                    // Start the test conversation with a marker message
+                    await append({
+                      role: "user",
+                      content: "test",
+                    });
+                    await handleTestSchedule();
+                  } else {
+                    await append({
+                      role: "user",
+                      content: suggestedAction.action,
+                    });
+                  }
                 }}
                 className="text-left border rounded-xl px-4 py-3.5 text-sm flex-1 gap-1 sm:flex-col w-full h-auto justify-start items-start"
               >

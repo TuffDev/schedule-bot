@@ -20,9 +20,9 @@ export const Overview = () => {
         <p>
           Try asking questions like:
           <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-            <li>"When are you free tomorrow afternoon?"</li>
-            <li>"I need help with my lawn!"</li>
-            <li>"Are there any available times this week?"</li>
+            <li>&quot;When are you free tomorrow afternoon?&quot;</li>
+            <li>&quot;I need help with my lawn!&quot;</li>
+            <li>&quot;Are there any available times this week?&quot;</li>
           </ul>
         </p>
       </div>

@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  schedule-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+      - NOTIFICATION_PHONE_NUMBER=${NOTIFICATION_PHONE_NUMBER}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    restart: unless-stopped

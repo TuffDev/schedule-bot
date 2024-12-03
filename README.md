@@ -2,7 +2,19 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+### Environment Setup
+
+First, create a `.env.local` file in your root directory with the following variables:
+
+```env
+OPENAI_API_KEY=your_openai_api_key
+TWILIO_ACCOUNT_SID=your_twilio_sid
+TWILIO_AUTH_TOKEN=your_twilio_token
+TWILIO_PHONE_NUMBER=your_twilio_number
+NOTIFICATION_PHONE_NUMBER=recipient_phone_number
+```
+
+Then, run the development server:
 
 ```bash
 npm run dev
@@ -16,21 +28,49 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Using Docker
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+To run the application using Docker:
 
-## Learn More
+1. Build the Docker image:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+docker build -t ai-scheduler .
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. Run the container:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+docker run -p 3000:3000 --env-file .env.local ai-scheduler
+```
 
-## Deploy on Vercel
+For development with hot-reload:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+docker compose up
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+To stop the container:
+
+```bash
+docker compose down
+```
+
+## Features
+
+- Interactive AI Schedule Management
+- Natural language event scheduling
+- SMS notifications via Twilio integration
+- Auto-test functionality for development
+
+### Using the Auto-Test Feature
+
+The application includes an auto-test feature for development purposes. **Important:** Remember to terminate the auto-test when finished to prevent continuous scheduling attempts.
+
+### Starter Prompts
+
+The application comes with pre-configured starter prompts to help you interact with the scheduling AI.
+
+### Caveat
+
+The app is currently set to UTC
