@@ -1,6 +1,6 @@
 "use client";
 
-import type { Message } from "ai";
+import type { Attachment, Message } from "ai";
 import { useChat } from "ai/react";
 
 import { PreviewMessage, ThinkingMessage } from "@/components/message";
@@ -8,6 +8,7 @@ import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom";
 
 import { MultimodalInput } from "@/components/multimodal-input";
 import { Overview } from "@/components/overview";
+import { useState } from "react";
 
 export function Chat({
   id,
@@ -34,6 +35,8 @@ export function Chat({
 
   const [messagesContainerRef, messagesEndRef] =
     useScrollToBottom<HTMLDivElement>();
+
+  const [attachments, setAttachments] = useState<Array<Attachment>>([]);
 
   const handleSchedule = async (eventDetails: {
     title: string;
@@ -95,6 +98,8 @@ export function Chat({
             setInput={setInput}
             handleSubmit={handleSubmit}
             isLoading={isLoading}
+            attachments={attachments}
+            setAttachments={setAttachments}
             stop={stop}
             messages={messages}
             setMessages={setMessages}
